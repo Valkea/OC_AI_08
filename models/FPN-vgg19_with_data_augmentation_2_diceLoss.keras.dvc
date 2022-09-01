@@ -1,0 +1,4 @@
+outs:
+- md5: 610268936f8914b17d422534fbe674ed
+  size: 275025872
+  path: FPN-vgg19_with_data_augmentation_2_diceLoss.keras
