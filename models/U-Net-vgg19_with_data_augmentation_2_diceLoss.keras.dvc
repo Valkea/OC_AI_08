@@ -1,0 +1,4 @@
+outs:
+- md5: f6b2c4d3ad1a3fb9d062b85ff8738002
+  size: 349089384
+  path: U-Net-vgg19_with_data_augmentation_2_diceLoss.keras
