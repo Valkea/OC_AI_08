@@ -1,0 +1,4 @@
+outs:
+- md5: 038d606277ee6499ab0d1d1c85bc1934
+  size: 624518264
+  path: U-Net-resnext101_with_data_augmentation_2_diceLoss.keras
