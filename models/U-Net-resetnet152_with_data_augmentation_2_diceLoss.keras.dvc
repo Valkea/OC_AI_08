@@ -1,0 +1,4 @@
+outs:
+- md5: 23dddff0bc7817b0548c3cc9cd1849c8
+  size: 809240088
+  path: U-Net-resetnet152_with_data_augmentation_2_diceLoss.keras
