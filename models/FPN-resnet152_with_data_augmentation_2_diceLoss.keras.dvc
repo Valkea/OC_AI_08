@@ -1,0 +1,4 @@
+outs:
+- md5: b0d0d0f54afcb83b3de5e1c5291e1ec1
+  size: 741557496
+  path: FPN-resnet152_with_data_augmentation_2_diceLoss.keras
