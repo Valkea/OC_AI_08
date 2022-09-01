@@ -1,0 +1,4 @@
+outs:
+- md5: 8c57d9eca0e1a7abf372395d92765975
+  size: 34720912
+  path: U-Net-custom_with_data_augmentation_2_diceLoss.keras
