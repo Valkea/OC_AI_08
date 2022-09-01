@@ -1,0 +1,4 @@
+outs:
+- md5: efe6e9de48f4ba0410fe34f8431355c8
+  size: 763939544
+  path: LinkNet-resnet152_with_data_augmentation_2_diceLoss.keras
