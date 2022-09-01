@@ -1,0 +1,4 @@
+outs:
+- md5: d934fe57413262b4ee7df67e33f13755
+  size: 868757248
+  path: LinkNet-efficientnetb7_with_data_augmentation_2_diceLoss.keras
