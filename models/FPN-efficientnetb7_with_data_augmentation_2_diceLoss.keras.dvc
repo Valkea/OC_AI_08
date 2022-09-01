@@ -1,0 +1,4 @@
+outs:
+- md5: fce31566a61882637838c8ee112351b5
+  size: 814190056
+  path: FPN-efficientnetb7_with_data_augmentation_2_diceLoss.keras
