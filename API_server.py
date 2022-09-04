@@ -3,25 +3,24 @@
 
 import os
 import io
-
-# import joblib
-from flask import Flask, flash, request, redirect, url_for, render_template, send_file, jsonify, Response
-
 import pathlib
-# import html
+import requests
+
+from flask import Flask, flash, request, redirect, url_for, jsonify, Response
 
 import numpy as np
 import segmentation_models as sm
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 # import tensorflow as tf
 from tensorflow import keras
 
 from PIL import Image
 
+
+# ########## API ##########
 
 # --- Preprocessing ---
 
@@ -39,8 +38,10 @@ def preprocess_sample(img, preprocessing=None):
 
 # --- Load TF Model ---
 
+base_resolution = "512x256"
+
 print("Load Semantic-segmentation Model")
-model_name = "FPN-efficientnetb7_with_data_augmentation_2_diceLoss"
+model_name = "FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256"
 model = keras.models.load_model(
     f"models/{model_name}.keras",
     custom_objects={
@@ -50,33 +51,43 @@ model = keras.models.load_model(
     },
 )
 
-
-# --- Uploading samples ---
-UPLOAD_FOLDER = "/uploads"
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+# --- API Flask app ---
 
 app = Flask(__name__)
 app.secret_key = "super secret key"
+
+
+UPLOAD_FOLDER = "/uploads"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+@app.route("/")
+def index():
+    return "The 'CityScape Semantic-segmentation API' server is up."
+
+
 @app.route("/predict/", methods=["GET", "POST"])
 def upload_file():
+
     if request.method == "POST":
         # check if the post request has the file part
         if "file" not in request.files:
             flash("No file part")
             return redirect(request.url)
         file = request.files["file"]
+
         # If the user does not select a file, the browser submits an
         # empty file without a filename.
         if file.filename == "":
+            print("COUCOU 4")
             flash("No selected file")
             return redirect(request.url)
-        if file and allowed_file(file.filename):
+
+        if file and (allowed_file(file.filename) or file.filename == 'file'):
             print(os.getcwd())
             # filename = secure_filename(file.filename)
             image_bytes = Image.open(io.BytesIO(file.read()))
@@ -96,18 +107,25 @@ def upload_file():
 
     return """
     <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
+    <html>
+        <head>
+            <title>Upload new File</title>
+        </head>
+        <body>
+            <h1>Upload new File</h1>
+            <form method=post enctype=multipart/form-data>
+                <input type=file name=file>
+                <input type=submit value=Upload>
+            </form>
+        </body>
+    </html>
     """
 
 
-@app.route("/")
-def index():
-    return "The 'CityScape Semantic-segmentation API' server is up."
+# ########## DEMO FRONTEND ##########
+# This could be a different Flask script totally independant from the API!
+
+API_URL = "http://0.0.0.0:5000"
 
 
 def get_ids(path):
@@ -121,51 +139,88 @@ def get_ids(path):
 
 @app.route("/list/")
 def file_list():
-    files_path = pathlib.Path('data', 'preprocessed', "256x128", "val")
+    files_path = pathlib.Path('data', 'preprocessed', base_resolution, "val")
     ids = get_ids(files_path)
-    table = "".join([f"<p><a href='{url_for('display', pic_id=x)}'>{x}</a></p>" for x in ids])
+
+    fileslist = "".join([f"<p><a href='{url_for('display', pic_id=x)}'>{x}</a></p>" for x in ids])
+
     return f"""
     <!doctype html>
-    <title>List of ids</title>
-    <h1>List of available ids</h1>
-    {table}
+    <html>
+        <head>
+            <title>List of available ids</title>
+        </head>
+        <body>
+            <h1>Upload new File</h1>
+            <form action={API_URL}/predict/ method=post enctype=multipart/form-data>
+                <input type=file name=file>
+                <input type=submit value=Upload>
+            </form>
+            <h1>List of available ids</h1>
+            {fileslist}
+        </body>
+    </html>
     """
 
-def compare_segmentations(img_source, mask_source, predictions):
 
-    mask = np.argmax(predictions, axis=3)[0]
+def compare_segmentations(img_source, mask_source, mask, iou, dice):
 
-    fig = plt.figure(figsize=(19,10))
-    plt.subplot(1,3,1)
+    # mask = np.argmax(predictions, axis=3)[0]
+
+    fig = plt.figure(figsize=(19, 5))
+    plt.subplot(1, 3, 1)
     plt.imshow(img_source)
     plt.axis('off')
     plt.title("Source")
 
-    plt.subplot(1,3,2)
+    plt.subplot(1, 3, 2)
     plt.imshow(mask)
     plt.axis('off')
-    plt.title("Predicted mask")
+    plt.title(f"Predicted mask (IoU={iou:.4f} | Dice:{dice:.4f})")
 
-    plt.subplot(1,3,3)
+    plt.subplot(1, 3, 3)
     plt.imshow(mask_source)
     plt.axis('off')
-    plt.title("Original mask")
+    plt.title("Expected mask")
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
     return fig
+
 
 @app.route("/display/<pic_id>", methods=["GET", "POST"])
 def display(pic_id):
 
-    test_img = Image.open(str(pathlib.Path('data','preprocessed', '256x128', 'val', f"{pic_id}.png")))
-    test_mask = Image.open(str(pathlib.Path('data','preprocessed', '256x128', 'val', f"{pic_id}_labels.png")))
-    preprocessed_img = preprocess_sample(test_img, preprocess_input)
+    # load base & mask images from the given 'pic_id'
+    source_img = Image.open(str(pathlib.Path('data', 'preprocessed', base_resolution, 'val', f"{pic_id}.png")))
+    source_mask = Image.open(str(pathlib.Path('data', 'preprocessed', base_resolution, 'val', f"{pic_id}_labels.png")))
 
-    predict = model.predict(np.array(preprocessed_img))
-    compare_segmentations(test_img, test_mask, predict)
+    # convert img to bytes for POST action
+    img_byte_arr = io.BytesIO()
+    source_img.save(img_byte_arr, format='PNG')
+    img_byte_arr = img_byte_arr.getvalue()
 
-    fig = compare_segmentations()
+    # POST the source_img (as a byte array)
+    files = {'file': img_byte_arr}
+    res = requests.post(f'{API_URL}/predict/', files=files)
+
+    # process API response
+    predict = np.array(res.json())
+    print("CLIENT: response type:", type(predict))
+    print("CLIENT: responde shape:", predict.shape)
+
+    # display the 3 images side by side for comparison (with scores)
+    y_true = np.array([keras.utils.to_categorical(source_mask, 8)])
+    y_pred = np.array([keras.utils.to_categorical(predict, 8)])
+    fig = compare_segmentations(
+            source_img,
+            source_mask,
+            predict,
+            sm.metrics.iou_score(y_true, y_pred),
+            sm.metrics.f1_score(y_true, y_pred),
+            )
+
+    # return the mask as an image
     output = io.BytesIO()
     FigureCanvas(fig).print_png(output)
     return Response(output.getvalue(), mimetype='image/png')
@@ -176,6 +231,9 @@ def display(pic_id):
     <h1>Display result</h1>
     {pic_id}
     """
+
+
+# ########## START BOTH API & FRONTEND ##########
 
 
 if __name__ == "__main__":
