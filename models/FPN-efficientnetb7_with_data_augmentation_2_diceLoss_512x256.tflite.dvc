@@ -1,0 +1,4 @@
+outs:
+- md5: d426c2018cd88bc9190470a35fce1b1b
+  size: 269282980
+  path: FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256.tflite

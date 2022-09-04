@@ -13,11 +13,10 @@ import segmentation_models as sm
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
-# import tensorflow as tf
-from tensorflow import keras
-
 from PIL import Image
+
+import tflite_runtime.interpreter as tflite
+import tensorflow as tf
 
 
 # ########## API ##########
@@ -25,7 +24,8 @@ from PIL import Image
 # --- Preprocessing ---
 
 BACKBONE = "efficientnetb7"
-preprocess_input = sm.get_preprocessing(BACKBONE)
+#preprocess_input = sm.get_preprocessing(BACKBONE)
+preprocess_input = tf.keras.applications.efficientnet.preprocess_input
 
 
 def preprocess_sample(img, preprocessing=None):
@@ -38,18 +38,29 @@ def preprocess_sample(img, preprocessing=None):
 
 # --- Load TF Model ---
 
-base_resolution = "512x256"
+base_W = 512
+base_H = 256
+base_resolution = f"{base_W}x{base_H}"
 
 print("Load Semantic-segmentation Model")
 model_name = "FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256"
-model = keras.models.load_model(
-    f"models/{model_name}.keras",
-    custom_objects={
-        "iou_score": sm.metrics.iou_score,
-        "f1-score": sm.metrics.f1_score,
-        "dice_loss": sm.losses.DiceLoss(),
-    },
-)
+
+# -- with a keras model
+# model = keras.models.load_model(
+#     f"models/{model_name}.keras",
+#     custom_objects={
+#         "iou_score": sm.metrics.iou_score,
+#         "f1-score": sm.metrics.f1_score,
+#         "dice_loss": sm.losses.DiceLoss(),
+#     },
+# )
+
+# -- with a TF-Lite model
+interpreter = tflite.Interpreter(model_path=f"models/{model_name}.tflite")
+interpreter.resize_tensor_input(0, [1, base_H, base_W, 3])
+interpreter.allocate_tensors()
+input_index = interpreter.get_input_details()[0]["index"]
+output_index = interpreter.get_output_details()[0]["index"]
 
 # --- API Flask app ---
 
@@ -83,7 +94,6 @@ def upload_file():
         # If the user does not select a file, the browser submits an
         # empty file without a filename.
         if file.filename == "":
-            print("COUCOU 4")
             flash("No selected file")
             return redirect(request.url)
 
@@ -95,9 +105,19 @@ def upload_file():
             # Preprocess image
             img = preprocess_sample(image_bytes, preprocess_input)
 
+            if (img.shape[1] != base_H or img.shape[2] != base_W):
+                raise Exception(f"Custom Error: wrong image size ({base_H}x{base_W}) required!")
+
             # Apply model
             print("--- Predict")
-            pred = model.predict(img)
+            # pred = model.predict(img)  # keras model
+
+            img = np.array(img, dtype=np.float32)
+            print(img.shape)
+
+            interpreter.set_tensor(input_index, img)
+            interpreter.invoke()
+            pred = interpreter.get_tensor(output_index)
 
             # Convert to categories
             mask = np.argmax(pred, axis=3)[0]
@@ -125,8 +145,8 @@ def upload_file():
 # ########## DEMO FRONTEND ##########
 # This could be a different Flask script totally independant from the API!
 
-API_URL = "http://0.0.0.0:5000"
-
+# API_URL = "http://0.0.0.0:5000"
+# API_URL = "http://cityscape-segmentation.herokuapp.com"
 
 def get_ids(path):
     ids = []
@@ -143,6 +163,9 @@ def file_list():
     ids = get_ids(files_path)
 
     fileslist = "".join([f"<p><a href='{url_for('display', pic_id=x)}'>{x}</a></p>" for x in ids])
+
+    API_URL = request.url_root
+    print("API_URL:", API_URL)
 
     return f"""
     <!doctype html>
@@ -201,6 +224,7 @@ def display(pic_id):
     img_byte_arr = img_byte_arr.getvalue()
 
     # POST the source_img (as a byte array)
+    API_URL = request.url_root
     files = {'file': img_byte_arr}
     res = requests.post(f'{API_URL}/predict/', files=files)
 
@@ -210,8 +234,8 @@ def display(pic_id):
     print("CLIENT: responde shape:", predict.shape)
 
     # display the 3 images side by side for comparison (with scores)
-    y_true = np.array([keras.utils.to_categorical(source_mask, 8)])
-    y_pred = np.array([keras.utils.to_categorical(predict, 8)])
+    y_true = np.eye(8)[source_mask]
+    y_pred = np.eye(8)[predict]
     fig = compare_segmentations(
             source_img,
             source_mask,
