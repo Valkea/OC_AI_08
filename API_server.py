@@ -9,32 +9,14 @@ import requests
 from flask import Flask, flash, request, redirect, url_for, jsonify, Response
 
 import numpy as np
-import segmentation_models as sm
-
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from PIL import Image
 
 import tflite_runtime.interpreter as tflite
-import tensorflow as tf
 
 
 # ########## API ##########
-
-# --- Preprocessing ---
-
-BACKBONE = "efficientnetb7"
-#preprocess_input = sm.get_preprocessing(BACKBONE)
-preprocess_input = tf.keras.applications.efficientnet.preprocess_input
-
-
-def preprocess_sample(img, preprocessing=None):
-    x = np.array(img)
-    if preprocessing:
-        x = preprocessing(x)
-
-    return np.array([x / 255], dtype=float)
-
 
 # --- Load TF Model ---
 
@@ -103,7 +85,9 @@ def upload_file():
             image_bytes = Image.open(io.BytesIO(file.read()))
 
             # Preprocess image
-            img = preprocess_sample(image_bytes, preprocess_input)
+            # img = preprocess_sample(image_bytes, preprocess_input)
+            # /!\ Preprocessed layers are now included in the model
+            img = np.array([np.array(image_bytes)], dtype=np.float32)
 
             if (img.shape[1] != base_H or img.shape[2] != base_W):
                 raise Exception(f"Custom Error: wrong image size ({base_H}x{base_W}) required!")
@@ -211,6 +195,25 @@ def compare_segmentations(img_source, mask_source, mask, iou, dice):
     return fig
 
 
+def mIOU(label, pred, num_classes=8):
+
+    iou_list = list()
+    present_iou_list = list()
+
+    for sem_class in range(num_classes):
+        pred_inds = (pred == sem_class)
+        target_inds = (label == sem_class)
+        if target_inds.sum().item() == 0:
+            iou_now = float('nan')
+        else:
+            intersection_now = (pred_inds[target_inds]).sum().item()
+            union_now = pred_inds.sum().item() + target_inds.sum().item() - intersection_now
+            iou_now = float(intersection_now) / float(union_now)
+            present_iou_list.append(iou_now)
+        iou_list.append(iou_now)
+    return np.mean(present_iou_list)
+
+
 @app.route("/display/<pic_id>", methods=["GET", "POST"])
 def display(pic_id):
 
@@ -234,14 +237,21 @@ def display(pic_id):
     print("CLIENT: responde shape:", predict.shape)
 
     # display the 3 images side by side for comparison (with scores)
-    y_true = np.eye(8)[source_mask]
-    y_pred = np.eye(8)[predict]
+    #y_true = np.eye(8)[source_mask]
+    #y_pred = np.eye(8)[predict]
+    y_true2 = np.asarray(source_mask)
+    y_pred2 = predict
+    iou = float(mIOU(y_true2, y_pred2, 8))
+    dice = (2*iou)/(iou+1)
+    #print(iou, sm.metrics.iou_score(y_true, y_pred)) 
+    #print(dice, sm.metrics.f1_score(y_true, y_pred))
+
     fig = compare_segmentations(
             source_img,
             source_mask,
             predict,
-            sm.metrics.iou_score(y_true, y_pred),
-            sm.metrics.f1_score(y_true, y_pred),
+            iou,
+            dice,
             )
 
     # return the mask as an image
