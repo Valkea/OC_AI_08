@@ -13,10 +13,14 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from PIL import Image
 
-import tflite_runtime.interpreter as tflite
+# import tflite_runtime.interpreter as tflite
+
+import onnxruntime as rt
+print("ONX:", rt.get_device())
 
 
 # ########## API ##########
+
 
 # --- Load TF Model ---
 
@@ -38,11 +42,18 @@ model_name = "FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256"
 # )
 
 # -- with a TF-Lite model
-interpreter = tflite.Interpreter(model_path=f"models/{model_name}.tflite")
-interpreter.resize_tensor_input(0, [1, base_H, base_W, 3])
-interpreter.allocate_tensors()
-input_index = interpreter.get_input_details()[0]["index"]
-output_index = interpreter.get_output_details()[0]["index"]
+# interpreter = tflite.Interpreter(model_path=f"models/{model_name}.tflite")
+# interpreter.resize_tensor_input(0, [1, base_H, base_W, 3])
+# interpreter.allocate_tensors()
+# input_index = interpreter.get_input_details()[0]["index"]
+# output_index = interpreter.get_output_details()[0]["index"]
+
+# --- with a ONNX model
+
+#providers = ['CPUExecutionProvider']
+providers=['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+m = rt.InferenceSession(str(pathlib.Path('models', f"{model_name}.onnx")), providers=providers)
+
 
 # --- API Flask app ---
 
@@ -99,9 +110,13 @@ def upload_file():
             img = np.array(img, dtype=np.float32)
             print(img.shape)
 
-            interpreter.set_tensor(input_index, img)
-            interpreter.invoke()
-            pred = interpreter.get_tensor(output_index)
+            # -- Predict with TF-Lite
+            # interpreter.set_tensor(input_index, img)
+            # interpreter.invoke()
+            # pred = interpreter.get_tensor(output_index)
+
+            # -- Predict with ONNX
+            pred = m.run(['model_6'], {'input': img})[0]
 
             # Convert to categories
             mask = np.argmax(pred, axis=3)[0]

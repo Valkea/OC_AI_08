@@ -10,5 +10,5 @@ autoalbument
 logs
 
 # Allow files and directories
-!models/FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256.tflite
+!models/FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256.onnx
 !data/preprocessed/512x256/val

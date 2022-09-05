@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements_api.txt
 
 # Install Python requirements.
 COPY ["API_server.py", "./"]
-COPY ["models/FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256.tflite", "./models/"]
+COPY ["models/FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256.onnx", "./models/"]
 COPY ["data/preprocessed/512x256/val", "./data/preprocessed/512x256/val"]
 
 # Start server

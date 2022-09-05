@@ -1,0 +1,4 @@
+outs:
+- md5: 4b8d51af02d776f5c5fdad4caec07681
+  size: 269370949
+  path: FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256.onnx
