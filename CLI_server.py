@@ -27,8 +27,8 @@ base_resolution = f"{base_W}x{base_H}"
 # ########## DEMO FRONTEND ##########
 # This could be a different Flask script totally independant from the API!
 
-API_URL = "http://0.0.0.0:5000"
-# API_URL = "http://cityscape-segmentation.herokuapp.com"
+# API_URL = "http://0.0.0.0:5000"
+API_URL = "http://cityscape-segmentation.herokuapp.com"
 
 
 @app.route("/")

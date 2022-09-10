@@ -126,8 +126,9 @@ Alternatively, you can run both servers separatly by running the 2 following lin
 (venv) >> python API_server.py
 (venv) >> python CLI_server.py
 ```
-> The former will run on port 5000 by default, and the second on port 5001 *(so the port given in the instructions bellow has to be replaced with 5001 for client url)*. Also the API_server port and url has to be defined in the CLI_server.py file.
-
+> The former will run on port 5000 by default, and the second on port 5001<br>
+> ⚠️ so the port given in the instructions bellow has to be replaced with 5001 for the ID's `list`.<br>
+> ⚠️ also, the CLI_server will send request to the API_server deployed on Heroku by default *(so you need to edit the file in order to change the API_URL parameter if you want to redirect it to the local API_server instance)*
 
 Stop with CTRL+C *(once the tests are done, from another terminal...)*
 
