@@ -116,10 +116,18 @@ To see the notebooks, run:
 
 
 ## Running API server locally using python scripts
-Start Flask development server:
+Start both API and CLIENT Flask servers:
+```bash
+(venv) >> python API_CLI_server.py
+```
+
+Alternatively, you can run both servers separatly by running the 2 following lines in 2 separate terminals:
 ```bash
 (venv) >> python API_server.py
+(venv) >> python CLI_server.py
 ```
+> The former will run on port 5000 by default, and the second on port 5001 *(so the port given in the instructions bellow has to be replaced with 5001 for client url)*. Also the API_server port and url has to be defined in the CLI_server.py file.
+
 
 Stop with CTRL+C *(once the tests are done, from another terminal...)*
 
