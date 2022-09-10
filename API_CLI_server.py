@@ -50,8 +50,8 @@ model_name = "FPN-efficientnetb7_with_data_augmentation_2_diceLoss_512x256"
 
 # --- with a ONNX model
 
-#providers = ['CPUExecutionProvider']
-providers=['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+# providers = ['CPUExecutionProvider']
+providers = ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
 m = rt.InferenceSession(str(pathlib.Path('models', f"{model_name}.onnx")), providers=providers)
 
 
@@ -252,14 +252,14 @@ def display(pic_id):
     print("CLIENT: responde shape:", predict.shape)
 
     # display the 3 images side by side for comparison (with scores)
-    #y_true = np.eye(8)[source_mask]
-    #y_pred = np.eye(8)[predict]
+    # y_true = np.eye(8)[source_mask]
+    # y_pred = np.eye(8)[predict]
     y_true2 = np.asarray(source_mask)
     y_pred2 = predict
     iou = float(mIOU(y_true2, y_pred2, 8))
     dice = (2*iou)/(iou+1)
-    #print(iou, sm.metrics.iou_score(y_true, y_pred)) 
-    #print(dice, sm.metrics.f1_score(y_true, y_pred))
+    # print(iou, sm.metrics.iou_score(y_true, y_pred))
+    # print(dice, sm.metrics.f1_score(y_true, y_pred))
 
     fig = compare_segmentations(
             source_img,
